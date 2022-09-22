@@ -13,6 +13,7 @@ from django.utils.deconstruct import deconstructible
 from django.utils.encoding import force_str
 from PyPDF2 import PdfFileReader, PdfFileWriter
 from reportlab.pdfgen import canvas
+from PIL import Image
 
 from . import app_settings, utils, validators
 from .commands import get_commands
@@ -53,7 +54,7 @@ class Document(models.Model):
         self._rendered_pages = []
 
     @staticmethod
-    def _render_page(page, fields):
+    def _render_page(page, fields, image_fields):
 
         packet = io.BytesIO()
 
@@ -80,6 +81,11 @@ class Document(models.Model):
             if data is not None:
                 can.drawString(field.x, field.y, text=data)
 
+        for field, data in image_fields.items():
+            original_image = Image.open(data)
+            rotated_image = original_image.rotate(180)
+            can.drawInlineImage(rotated_image, field.x, field.y - field.height, width=field.width, height=field.height)
+
         can.save()
 
         packet.seek(0)
@@ -90,12 +96,16 @@ class Document(models.Model):
         for page in self.pages.all():
 
             fields = {}
+            image_fields = {}
             for field in page.fields.all():
                 fields[field] = field.process(**kwargs)
+            for image_field in page.image_fields.all():
+                image_fields[image_field] = image_field.process(**kwargs)
 
+            print(image_fields)
             self._rendered_pages.append({
                 'template_page_number': page.number,
-                'page': self._render_page(page, fields)
+                'page': self._render_page(page, fields, image_fields)
             })
 
         Document.objects.filter(pk=self.pk).update(times_used=models.F('times_used')+1)
@@ -294,3 +304,38 @@ class Field(models.Model):
             data = self.get_default()
 
         return data
+
+
+class ImageField(models.Model):
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, related_name='image_fields')
+
+    name = models.CharField(max_length=255)
+    default = models.CharField(max_length=255, blank=True)
+    x = models.IntegerField(default=10)
+    y = models.IntegerField(default=10)
+    width = models.IntegerField(default=100)
+    height = models.IntegerField(default=100)
+    obj_name = models.CharField(max_length=255, blank=True)
+    inserted = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return '{}.{}'.format(self.page, self.name)
+
+    def process(self, **kwargs):
+        data = None
+
+        val = self.obj_name or self.name
+
+        try:
+            data = utils.get_field_data(val, **kwargs)
+        except AttributeError:
+            pass
+
+        if data is None:
+            data = self.get_default()
+
+        return data
+
+    def get_default(self, default=''):
+        return default

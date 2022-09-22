@@ -18,6 +18,8 @@ INSTALLED_APPS = [
     'bootstrap4',
 ]
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 # django-bootstrap4 is not required for our testing purposes
 # six is being moved into its own project from django3/master
 #   onwards and django-bootstrap currently requires six to be within django.
@@ -74,7 +76,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-# DJANGO_PDF_OVERLAY_GENERATE_LAYOUT_IMAGE = True
-# DJANGO_PDF_OVERLAY_LOCAL_DOCUMENT_STORAGE = os.path.join(BASE_DIR, 'media', 'django_pdf_overlay', 'documents')
-# DJANGO_PDF_OVERLAY_MAGICK_LOCATION = None
+DJANGO_PDF_OVERLAY_GENERATE_LAYOUT_IMAGE = True
+DJANGO_PDF_OVERLAY_LOCAL_DOCUMENT_STORAGE = os.path.join(BASE_DIR, 'media', 'django_pdf_overlay', 'documents')
+DJANGO_PDF_OVERLAY_MAGICK_LOCATION = ("C:/Program Files/ImageMagick-7.1.0-Q16-HDRI/magick.exe", 'convert')
 # DJANGO_PDF_OVERLAY_MAGICK_DENSITY = 300

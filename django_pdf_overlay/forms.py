@@ -1,7 +1,7 @@
 from django import forms
 from django_pdf_overlay import app_settings
 
-from .models import Document, Field, Page
+from .models import Document, Field, Page, ImageField
 
 
 class DocumentForm(forms.ModelForm):
@@ -68,17 +68,6 @@ class FieldEditorForm(forms.ModelForm):
         return split_and_strip(self.cleaned_data['name'])
 
 
-def page_fields_formset(can_delete=True, extra=1, **kwargs):
-    return forms.inlineformset_factory(
-        Page,
-        Field,
-        form=FieldEditorForm,
-        extra=extra,
-        can_delete=can_delete,
-        **kwargs
-    )
-
-
 class FieldsCopyFromDocumentPageForm(forms.Form):
     page = forms.ModelChoiceField(Page.objects.all())
 
@@ -100,3 +89,36 @@ class PageEditorForm(forms.ModelForm):
         fields = ['image']
 
     image = forms.ImageField(required=True)
+
+
+class ImageFieldEditorForm(forms.ModelForm):
+    class Meta:
+        model = ImageField
+        fields = ['name', 'default', 'obj_name', 'x', 'y', 'width', 'height']
+
+        help_texts = {
+            'obj_name': "object.attribute usage when rending data in the pdf. "
+                        "Uses name if obj_name is not supplied. "
+                        "See documentation for more information.",
+            'default': 'If no value is found, is there a default value you wish '
+                       'to supply? See documentation for more options.',
+        }
+
+
+def page_fields_formset(can_delete=True, extra=1, **kwargs):
+    return forms.inlineformset_factory(
+        Page,
+        Field,
+        form=FieldEditorForm,
+        extra=extra,
+        can_delete=can_delete,
+        **kwargs
+    ), \
+           forms.inlineformset_factory(
+            Page,
+            ImageField,
+            form=ImageFieldEditorForm,
+            extra=extra,
+            can_delete=can_delete,
+            **kwargs
+           )

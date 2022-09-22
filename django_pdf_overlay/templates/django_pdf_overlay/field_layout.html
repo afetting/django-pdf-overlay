@@ -89,10 +89,24 @@
                 font_color: "{{ field.font_color }}",
             });
         {% endfor %}
+        var images = [];
+
+        {% for field in object.image_fields.all %}
+            images.push({
+                pk: {{ field.pk }},
+                text: "{{ "{" }}{{ field.name }}{{ "}" }}",
+                name: "{{ field.name }}",
+                x: {{ field.x }},
+                y: {{ field.y }},
+                image_width: {{field.width }},
+                image_height: {{ field.height }},
+            });
+        {% endfor %}
 
         for (var i = 0; i < texts.length; i++) {
             var text = texts[i];
             ctx.font = text.font_size + "px " + text.font_font;
+
 
             $('<input>').attr({type: 'hidden', id: text.pk + '_x', name: text.pk + '_x', value: text.x}).appendTo('#field-positions');
             $('<input>').attr({type: 'hidden', id: text.pk + '_y', name: text.pk + '_y', value: text.y}).appendTo('#field-positions');
@@ -100,9 +114,19 @@
             $('<input>').attr({type: 'hidden', id: text.pk + '_font', name: text.pk + '_font', value: text.font_font}).appendTo('#field-positions');
             $('<input>').attr({type: 'hidden', id: text.pk + '_font_color', name: text.pk + '_font_color', value: text.font_color}).appendTo('#field-positions');
         }
+        i = 0;
+        for (i = 0; i < images.length; i++) {
+            var image = images[i];
+
+            $('<input>').attr({type: 'hidden', id: image.pk + '_image_x', name: image.pk + '_image_x', value: image.x}).appendTo('#field-positions');
+            $('<input>').attr({type: 'hidden', id: image.pk + '_image_y', name: image.pk + '_image_y', value: image.y}).appendTo('#field-positions');
+            $('<input>').attr({type: 'hidden', id: image.pk + '_image_width', name: image.pk + '_image_width', value: image.image_width}).appendTo('#field-positions');
+            $('<input>').attr({type: 'hidden', id: image.pk + '_image_height', name: image.pk + '_image_height', value: image.image_height}).appendTo('#field-positions');
+        }
 
         // this var will hold the index of the selected text
         var selectedText = -1;
+        var selectedImage = -1;
 
         if (localStorage.getItem('django_pdf_overlay_layout_offset') === null) {
             change_offset(1);
@@ -124,15 +148,29 @@
                 ctx.fillStyle = text.font_color;
                 ctx.fillText(text.text, text.x, text.y);
             }
+            for (i = 0; i < images.length; i++) {
+                var image = images[i];
+                ctx.strokeRect(image.x, image.y, image.image_width, image.image_height);
+            }
         }
 
         // test if x,y is inside the bounding box of texts[textIndex]
-        function textHittest(x, y, textIndex) {
+        function textHitTest(x, y, textIndex) {
             var text = texts[textIndex];
             return (x >= text.x &&
                 x <= text.x + text.width &&
                 y >= text.y - text.height &&
                 y <= text.y);
+        }
+        function imageHitTest(x, y, imageIndex) {
+            var image = images[imageIndex];
+            console.log(x, y);
+            console.log(image.x, image.y, image.image_width, image.image_height);
+
+            return (x >= image.x &&
+                x <= image.x + image.image_width &&
+                y >= image.y &&
+                y <= image.y + image.image_height);
         }
 
         function getMousePos(canvas, evt) {
@@ -152,9 +190,15 @@
 
             mpos = getMousePos(canvas, e);
 
+            for (var i = 0; i < images.length; i++) {
+                if (imageHitTest(mpos.x, mpos.y, i)) {
+                    selectedImage = i;
+                }
+            }
+
             // Put your mousedown stuff here
-            for (var i = 0; i < texts.length; i++) {
-                if (textHittest(mpos.x, mpos.y, i)) {
+            for (i = 0; i < texts.length; i++) {
+                if (textHitTest(mpos.x, mpos.y, i)) {
                     selectedText = i;
                 }
             }
@@ -164,6 +208,7 @@
         function handleMouseUp(e) {
             e.preventDefault();
             selectedText = -1;
+            selectedImage = -1;
         }
 
         // handle mousemove events
@@ -171,17 +216,29 @@
         // the last mousemove event and move the selected text
         // by that distance
         function handleMouseMove(e) {
-            if (selectedText < 0) {return;}
-            e.preventDefault();
 
-            mpos = getMousePos(canvas, e);
+            if (selectedText >= 0) {
+                e.preventDefault();
+                mpos = getMousePos(canvas, e);
 
-            var text = texts[selectedText];
-            text.x = mpos.x;
-            text.y = mpos.y;
-            document.getElementById(text.pk + '_x').value = Math.round(text.x / size_offset);
-            document.getElementById(text.pk + '_y').value = Math.round(text.y / size_offset);
-            draw();
+                var text = texts[selectedText];
+                text.x = mpos.x;
+                text.y = mpos.y;
+                document.getElementById(text.pk + '_x').value = Math.round(text.x / size_offset);
+                document.getElementById(text.pk + '_y').value = Math.round(text.y / size_offset);
+                draw();
+            } else
+            if (selectedImage >= 0) {
+                e.preventDefault();
+                mpos = getMousePos(canvas, e);
+
+                var image = images[selectedImage];
+                image.x = mpos.x;
+                image.y = mpos.y;
+                document.getElementById(image.pk + '_image_x').value = Math.round(image.x / size_offset);
+                document.getElementById(image.pk + '_image_y').value = Math.round(image.y / size_offset);
+                draw();
+            }
         }
 
         // listen for mouse events

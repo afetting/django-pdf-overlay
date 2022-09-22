@@ -33,7 +33,7 @@
                     <th scope="row">{{ page.number }}</th>
                     <td>
                         {% if perms.django_pdf_overlay.change_field %}
-                            <a class="btn btn-info" href="{{ page.get_fields_editor_url }}">{{ page.fields.count }} field{{ page.fields.count|pluralize:",s" }}</a>
+                            <a class="btn btn-info" href="{{ page.get_fields_editor_url }}">{{ page.fields.count|add:page.image_fields.count }} field{{ page.fields.count|pluralize:",s" }}</a>
                         {% else %}
                             <a class="btn btn-info disabled" href="#">{{ page.fields.count }} field{{ page.fields.count|pluralize:",s" }}</a>
                         {% endif %}

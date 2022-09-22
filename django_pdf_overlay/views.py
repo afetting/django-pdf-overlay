@@ -53,6 +53,7 @@ class PageDetailView(PermissionRequiredMixin, DetailView):
 
     def post(self, request, **kwargs):
         changeable_fields = ['x', 'y', 'font_size', 'font_color', 'font']
+        image_changeable_fields = {'image_x': 'x', 'image_y': 'y', 'image_width': 'width', 'image_height': 'height'}
         page = self.get_object()
 
         for field in page.fields.all():
@@ -73,6 +74,30 @@ class PageDetailView(PermissionRequiredMixin, DetailView):
 
                     if getattr(field, f) != fx:
                         setattr(field, f, fx)
+                        changed = True
+
+            if changed:
+                print('saving', field)
+                field.save()
+
+        for field in page.image_fields.all():
+
+            changed = False
+
+            for key, value in image_changeable_fields.items():
+                x = '{}_{}'.format(field.pk, key)
+
+                if x in request.POST:
+
+                    fx = request.POST[x]
+
+                    try:
+                        fx = int(fx)
+                    except (ValueError, TypeError):
+                        pass
+
+                    if getattr(field, value) != fx:
+                        setattr(field, value, fx)
                         changed = True
 
             if changed:
@@ -131,11 +156,15 @@ class PageFieldsView(PermissionRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super(PageFieldsView, self).get_context_data(**kwargs)
 
-        form = forms.page_fields_formset(
+        form, image_form = forms.page_fields_formset(
             can_delete=self.request.user.has_perm('django_pdf_overlay.delete_field'),
             extra=self.request.user.has_perm('django_pdf_overlay.add_field')
         )
         context['formset'] = form(
+            data=self.request.POST if self.request.method == 'POST' else None,
+            instance=self.object
+        )
+        context['image_formset'] = image_form(
             data=self.request.POST if self.request.method == 'POST' else None,
             instance=self.object
         )
@@ -147,8 +176,9 @@ class PageFieldsView(PermissionRequiredMixin, UpdateView):
         self.object = self.get_object()
         context = self.get_context_data()
 
-        if context['formset'].is_valid():
+        if context['formset'].is_valid() and context['image_formset'].is_valid():
             context['formset'].save()
+            context['image_formset'].save()
 
             return redirect(self.get_object().get_fields_editor_url())
 
